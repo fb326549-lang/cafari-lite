@@ -59,9 +59,9 @@
 				</dict>
 			</array>
 			<!-- The car screen. A plain UIWindowScene, not a CarPlay template
-			     scene: that is what lets a web view draw on the head unit.
-			     iOS only ever creates this scene for a build signed with the
-			     CarPlay video entitlement. -->
+			     scene. This raw scene role is undocumented. The app needs an
+			     Apple-granted CarPlay entitlement; the exact entitlement and
+			     scene compatibility must be validated on the target iOS version. -->
 			<key>UIWindowSceneSessionRoleCarPlay</key>
 			<array>
 				<dict>
