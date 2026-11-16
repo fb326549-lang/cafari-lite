@@ -22,13 +22,6 @@ final class RemoteControllerViewController: UIViewController, UITextFieldDelegat
     NotificationCenter.default.addObserver(
       self, selector: #selector(updateConnection),
       name: .cafariLiteCarDisconnected, object: nil)
-    NotificationCenter.default.addObserver(
-      self, selector: #selector(updateConnection),
-      name: CarGate.stateChanged, object: nil)
-
-    if Settings.playOnlyWhenParked {
-      CarGate.shared.start()
-    }
     updateConnection()
   }
 
