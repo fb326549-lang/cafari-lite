@@ -7,7 +7,7 @@ final class RemoteTouchpadView: UIView {
   var onTap: (() -> Void)?
   var onScroll: ((CGFloat, CGFloat) -> Void)?
 
-  private enum GestureMode {
+  private enum GestureMode: Equatable {
     case idle
     case pointer
     case scroll
