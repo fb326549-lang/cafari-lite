@@ -22,6 +22,8 @@
 	<string>1</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Used only to tell whether the car is moving, so the car screen can pause while driving. Nothing is stored or sent anywhere.</string>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
