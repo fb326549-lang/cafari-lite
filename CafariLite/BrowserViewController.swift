@@ -10,7 +10,7 @@
 import UIKit
 import WebKit
 
-final class BrowserViewController: UIViewController, WKNavigationDelegate {
+final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
   private let home = URL(string: "https://m.youtube.com")!
   private let showsStatus: Bool
   private var webView: WKWebView!
@@ -20,6 +20,98 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
   private var wasSigningIn = false
   private var loggedCarLayout = false
   private var drivingCover: UIView?
+
+  private static let remoteBootstrap = """
+  (() => {
+    if (window.__myCarRemote) return;
+    const state = { x: window.innerWidth / 2, y: window.innerHeight / 2, cursor: null };
+    const ensureCursor = () => {
+      if (!document.documentElement) return;
+      if (!state.cursor || !document.documentElement.contains(state.cursor)) {
+        const cursor = document.createElement('div');
+        cursor.id = 'mycar-remote-pointer';
+        cursor.setAttribute('aria-hidden', 'true');
+        cursor.style.cssText = 'position:fixed;left:0;top:0;width:22px;height:22px;border:2px solid #fff;border-radius:50%;background:rgba(0,122,255,.45);box-shadow:0 0 0 2px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.45);z-index:2147483647;pointer-events:none;transform:translate(-50%,-50%);';
+        document.documentElement.appendChild(cursor);
+        state.cursor = cursor;
+      }
+      state.cursor.style.left = state.x + 'px';
+      state.cursor.style.top = state.y + 'px';
+    };
+    state.move = (dx, dy) => {
+      state.x = Math.max(8, Math.min(window.innerWidth - 8, state.x + dx * window.innerWidth));
+      state.y = Math.max(8, Math.min(window.innerHeight - 8, state.y + dy * window.innerHeight));
+      ensureCursor();
+    };
+    state.reset = () => {
+      state.x = window.innerWidth / 2;
+      state.y = window.innerHeight / 2;
+      ensureCursor();
+    };
+    state.tap = () => {
+      ensureCursor();
+      const hit = document.elementFromPoint(state.x, state.y);
+      if (!hit) return;
+      const target = hit.closest('button,a,[role="button"],input,textarea,select,[tabindex],[contenteditable="true"],video') || hit;
+      const rect = target.getBoundingClientRect();
+      const init = {
+        bubbles: true, cancelable: true, view: window,
+        clientX: state.x, clientY: state.y,
+        screenX: state.x, screenY: state.y,
+        button: 0, buttons: 1
+      };
+      try {
+        target.dispatchEvent(new PointerEvent('pointerdown', Object.assign({}, init, { pointerId: 1, pointerType: 'mouse', isPrimary: true })));
+        target.dispatchEvent(new MouseEvent('mousedown', init));
+        target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, init, { pointerId: 1, pointerType: 'mouse', isPrimary: true, buttons: 0 })));
+        target.dispatchEvent(new MouseEvent('mouseup', Object.assign({}, init, { buttons: 0 })));
+        target.dispatchEvent(new MouseEvent('click', Object.assign({}, init, { buttons: 0 })));
+        if (target instanceof HTMLElement && target.matches('button,a,input,[role="button"],[tabindex]')) target.click();
+      } catch (_) {}
+    };
+    state.scroll = (dx, dy) => {
+      const deltaX = -dx * window.innerWidth * 1.1;
+      const deltaY = -dy * window.innerHeight * 1.1;
+      let node = document.elementFromPoint(state.x, state.y);
+      let scroller = null;
+      while (node && node !== document.body && node !== document.documentElement) {
+        const style = window.getComputedStyle(node);
+        const canScrollY = /(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight;
+        const canScrollX = /(auto|scroll)/.test(style.overflowX) && node.scrollWidth > node.clientWidth;
+        if ((deltaY !== 0 && canScrollY) || (deltaX !== 0 && canScrollX)) { scroller = node; break; }
+        node = node.parentElement;
+      }
+      if (scroller) {
+        scroller.scrollBy(deltaX, deltaY);
+      } else {
+        window.scrollBy(deltaX, deltaY);
+      }
+      ensureCursor();
+    };
+    state.insertText = (text) => {
+      let target = document.activeElement;
+      if (!target || target === document.body || target === document.documentElement) {
+        const hit = document.elementFromPoint(state.x, state.y);
+        target = hit && hit.closest('input,textarea,[contenteditable="true"]');
+      }
+      if (!target) return;
+      if (target.matches && target.matches('input,textarea')) {
+        const proto = target.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        const next = (target.value || '') + text;
+        if (setter) setter.call(target, next); else target.value = next;
+        target.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      } else if (target.isContentEditable) {
+        target.focus();
+        document.execCommand('insertText', false, text);
+      }
+    };
+    window.__myCarRemote = state;
+    ensureCursor();
+    window.addEventListener('pageshow', ensureCursor);
+  })();
+  """
 
   init(showsStatus: Bool) {
     self.showsStatus = showsStatus
@@ -45,9 +137,12 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
     configuration.allowsInlineMediaPlayback = true
     configuration.mediaTypesRequiringUserActionForPlayback = []
     configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+    configuration.userContentController.addUserScript(
+      WKUserScript(source: Self.remoteBootstrap, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
 
     webView = WKWebView(frame: .zero, configuration: configuration)
     webView.navigationDelegate = self
+    webView.uiDelegate = self
     webView.allowsBackForwardNavigationGestures = true
     webView.scrollView.contentInsetAdjustmentBehavior = .always
     webView.translatesAutoresizingMaskIntoConstraints = false
@@ -104,6 +199,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
         self, selector: #selector(sendToCarRequested(_:)),
         name: .cafariLiteSendToCar, object: nil)
       NotificationCenter.default.addObserver(
+        self, selector: #selector(handleRemoteCommand(_:)),
+        name: .myCarRemoteCommand, object: nil)
+      NotificationCenter.default.addObserver(
         self, selector: #selector(settingsChanged),
         name: .cafariLiteSettingsChanged, object: nil)
       NotificationCenter.default.addObserver(
@@ -143,6 +241,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
       let gear = button("gearshape", #selector(showSettings))
       gear.accessibilityLabel = "Settings"
       container.addArrangedSubview(gear)
+      let close = button("xmark", #selector(closePhoneBrowser))
+      close.accessibilityLabel = "Close phone browser"
+      container.addArrangedSubview(close)
     }
 
     if showsStatus {
@@ -160,6 +261,52 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
 
   @objc private func goBack() { webView.goBack() }
   @objc private func goForward() { webView.goForward() }
+  @objc private func closePhoneBrowser() { dismiss(animated: true) }
+
+  @objc private func handleRemoteCommand(_ notification: Notification) {
+    guard !showsStatus, let info = notification.userInfo,
+          let type = info["type"] as? String else { return }
+    switch type {
+    case "navigate":
+      guard let raw = info["url"] as? String,
+            let url = URL(string: raw),
+            ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
+      webView.load(URLRequest(url: url))
+    case "back":
+      webView.goBack()
+    case "forward":
+      webView.goForward()
+    case "home":
+      webView.load(URLRequest(url: home))
+    case "reload":
+      webView.reload()
+    case "move":
+      let dx = (info["dx"] as? NSNumber)?.doubleValue ?? 0
+      let dy = (info["dy"] as? NSNumber)?.doubleValue ?? 0
+      evaluateRemote("window.__myCarRemote && window.__myCarRemote.move(\(dx), \(dy));")
+    case "tap":
+      evaluateRemote("window.__myCarRemote && window.__myCarRemote.tap();")
+    case "scroll":
+      let dx = (info["dx"] as? NSNumber)?.doubleValue ?? 0
+      let dy = (info["dy"] as? NSNumber)?.doubleValue ?? 0
+      evaluateRemote("window.__myCarRemote && window.__myCarRemote.scroll(\(dx), \(dy));")
+    case "insertText":
+      guard let text = info["text"] as? String,
+            let data = try? JSONSerialization.data(withJSONObject: text, options: [.fragmentsAllowed]),
+            let json = String(data: data, encoding: .utf8) else { return }
+      evaluateRemote("window.__myCarRemote && window.__myCarRemote.insertText(\(json));")
+    case "resetPointer":
+      evaluateRemote("window.__myCarRemote && window.__myCarRemote.reset();")
+    default:
+      break
+    }
+  }
+
+  private func evaluateRemote(_ javaScript: String) {
+    webView.evaluateJavaScript(javaScript) { _, error in
+      if let error { Log.write("remote command failed: \(error.localizedDescription)") }
+    }
+  }
   @objc private func reload() { webView.reload() }
   @objc private func goHome() { webView.load(URLRequest(url: home)) }
 
@@ -235,6 +382,17 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate {
     // playsinline keeps it in our window rather than handing it to the system
     // player, which on the car screen would put it somewhere we cannot see.
     return URL(string: "https://www.youtube.com/embed/\(id)?autoplay=1&playsinline=1&rel=0")
+  }
+
+  func webView(_ webView: WKWebView,
+               createWebViewWith configuration: WKWebViewConfiguration,
+               for navigationAction: WKNavigationAction,
+               windowFeatures: WKWindowFeatures) -> WKWebView? {
+    // Open target=_blank links in this browser instead of a new, invisible window.
+    if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+      webView.load(URLRequest(url: url))
+    }
+    return nil
   }
 
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!,
