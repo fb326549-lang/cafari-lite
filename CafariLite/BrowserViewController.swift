@@ -207,7 +207,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       NotificationCenter.default.addObserver(
         self, selector: #selector(drivingStateChanged),
         name: CarGate.stateChanged, object: nil)
-      if Settings.playOnlyWhenParked { CarGate.shared.start() }
+      if Settings.playOnlyWhenParked {
+        CarGate.shared.start()
+        drivingStateChanged() // Fail closed immediately while parked state is unknown.
+      }
     }
   }
 
