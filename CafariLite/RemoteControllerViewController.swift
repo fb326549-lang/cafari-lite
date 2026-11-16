@@ -74,7 +74,7 @@ final class RemoteControllerViewController: UIViewController, UITextFieldDelegat
     addressField.placeholder = "輸入網址或 YouTube 搜尋關鍵字"
     addressField.autocapitalizationType = .none
     addressField.autocorrectionType = .no
-    addressField.keyboardType = .URL
+    addressField.keyboardType = .webSearch
     addressField.returnKeyType = .go
     addressField.clearButtonMode = .whileEditing
     addressField.delegate = self
