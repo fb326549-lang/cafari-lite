@@ -47,4 +47,6 @@ extension Notification.Name {
   static let cafariLiteAccountChanged = Notification.Name("CafariLiteAccountChanged")
   /// Posted by the phone window to hand the page it is showing to the car.
   static let cafariLiteSendToCar = Notification.Name("CafariLiteSendToCar")
+  /// Commands sent by the iPhone touchpad to the CarPlay browser.
+  static let myCarRemoteCommand = Notification.Name("MyCarRemoteCommand")
 }
