@@ -53,7 +53,6 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
       const hit = document.elementFromPoint(state.x, state.y);
       if (!hit) return;
       const target = hit.closest('button,a,[role="button"],input,textarea,select,[tabindex],[contenteditable="true"],video') || hit;
-      const rect = target.getBoundingClientRect();
       const init = {
         bubbles: true, cancelable: true, view: window,
         clientX: state.x, clientY: state.y,
@@ -65,8 +64,7 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
         target.dispatchEvent(new MouseEvent('mousedown', init));
         target.dispatchEvent(new PointerEvent('pointerup', Object.assign({}, init, { pointerId: 1, pointerType: 'mouse', isPrimary: true, buttons: 0 })));
         target.dispatchEvent(new MouseEvent('mouseup', Object.assign({}, init, { buttons: 0 })));
-        target.dispatchEvent(new MouseEvent('click', Object.assign({}, init, { buttons: 0 })));
-        if (target instanceof HTMLElement && target.matches('button,a,input,[role="button"],[tabindex]')) target.click();
+        if (target instanceof HTMLElement) target.click();
       } catch (_) {}
     };
     state.scroll = (dx, dy) => {
