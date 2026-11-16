@@ -1,5 +1,5 @@
 // Copy to Local.xcconfig and edit. Never committed.
-CAFARI_LITE_BUNDLE_ID = com.yourname.cafarilite
+CAFARI_LITE_BUNDLE_ID = com.fb326549.mycarbrowser
 CAFARI_LITE_TEAM = ABCDE12345
 
 // Only once Apple has granted your account the CarPlay entitlements:
