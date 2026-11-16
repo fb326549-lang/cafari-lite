@@ -135,8 +135,10 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     configuration.allowsInlineMediaPlayback = true
     configuration.mediaTypesRequiringUserActionForPlayback = []
     configuration.defaultWebpagePreferences.allowsContentJavaScript = true
-    configuration.userContentController.addUserScript(
-      WKUserScript(source: Self.remoteBootstrap, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+    if !showsStatus {
+      configuration.userContentController.addUserScript(
+        WKUserScript(source: Self.remoteBootstrap, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+    }
 
     webView = WKWebView(frame: .zero, configuration: configuration)
     webView.navigationDelegate = self
