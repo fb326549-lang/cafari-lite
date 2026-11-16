@@ -213,9 +213,9 @@ final class BrowserViewController: UIViewController, WKNavigationDelegate, WKUID
     let container = UIStackView()
     container.axis = .horizontal
     container.alignment = .center
-    container.spacing = 16
+    container.spacing = 10
     container.isLayoutMarginsRelativeArrangement = true
-    container.layoutMargins = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
+    container.layoutMargins = UIEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
     container.backgroundColor = .secondarySystemBackground
 
     func button(_ systemName: String, _ action: Selector) -> UIButton {
